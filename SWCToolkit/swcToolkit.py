@@ -433,7 +433,7 @@ class swcToolkit():
             from swcToolkit import swcToolkit
             swcTool = swcToolkit()
             swcTool.convert_to_obj_lines("./test_retinal_cells.swc" , "./test_converted_output.obj")            
-        Status: untested!
+        Status: Tested! 2025.04.02
 
         Parameters
         ----------
@@ -468,5 +468,126 @@ class swcToolkit():
                     txt_str = f'l {index + 1} {parent_index}\n'
                     f.write(txt_str)
         asdf = 1
+        
+    
+    def read_swc_file(self, file_path):
+        """
+        Added 2025.04.02: Reads the content of a given SWC file 
+        Status: TESTED and FUNCTIONAL 
+        Parameters
+        ----------
+        file_path : TYPE
+        DESCRIPTION.
+
+        Returns
+        -------
+        swc_data : TYPE Pandas Dataframe
+        DESCRIPTION. swc data in Pandas Dataframe format
+        """
+        
+        # Load SWC file using pandas
+        swc_data = pd.read_csv(file_path, delim_whitespace=True, comment='#', header=None)
+        
+        # Replace 'NA' and 'nan' values with -1
+        swc_data = swc_data.replace(['NA', np.nan], -1)
+        
+        # Convert the pandas DataFrame to a NumPy array
+        swc_data = swc_data.to_numpy()
+        
+        # Create a structured array with the specified header
+        swc_data = np.core.records.fromarrays(swc_data.T,
+                                              names='id, type, x, y, z, radius, parent',
+                                              formats='i4, i4, f4, f4, f4, f4, i4')
+        return swc_data
 
 
+    def create_mesh_from_swc(self, swc_data, minRadius=0.005):
+        """
+        Creates a nesh from the Pandas dataFrame of a SWC file
+        Status: TESTED and FUNCTIONAL
+        
+        Parameters
+        ----------
+        swc_data : TYPE Pandas dataFrame
+            DESCRIPTION. SWC data in a Pandas dataFrame format
+        minRadius : TYPE, optional
+            DESCRIPTION. The default is 0.005. Lower values will result in a larger file containing more triangles of smaller sizes.
+
+        Returns
+        -------
+        combined_mesh : TYPE
+            DESCRIPTION. A concatenated Trimesh.mesh object 
+
+        """
+        
+        import trimesh
+
+        # Create an empty list to store all mesh objects
+        meshes = []
+    
+        # Process nodes
+        for i, node in enumerate(swc_data):
+            # Create a sphere for each node
+            sphere = trimesh.creation.icosphere(subdivisions=2, radius=max(node['radius'], minRadius))
+            sphere.apply_translation([node['x'], node['y'], node['z']])
+            meshes.append(sphere)
+    
+            # Create a cylinder for each edge
+            if node['parent'] != -1:
+                parent_node = swc_data[np.where(swc_data['id'] == node['parent'])[0][0]]
+    
+                # Calculate cylinder properties
+                start = np.array([node['x'], node['y'], node['z']])
+                end = np.array([parent_node['x'], parent_node['y'], parent_node['z']])
+                length = np.linalg.norm(end - start)
+    
+                if length > 0:  # Check if the length is greater than zero before proceeding
+                    direction = (end - start) / length
+                    radius = (max(node['radius'], minRadius) + max(parent_node['radius'], minRadius)) / 2
+    
+                    # Create the cylinder
+                    cylinder = trimesh.creation.cylinder(radius=max(radius, minRadius), height=length, sections=16)
+    
+                    try:
+                        cylinder.apply_transform(trimesh.geometry.align_vectors([0, 0, 1], direction))
+                    except np.linalg.LinAlgError:
+                        # Alternative method to align the vectors
+                        axis = np.cross([0, 0, 1], direction)
+                        angle = np.arccos(np.dot([0, 0, 1], direction))
+                        cylinder.apply_transform(trimesh.transformations.rotation_matrix(angle, axis))
+    
+                    cylinder.apply_translation((start + end) / 2)
+    
+                    # Add the cylinder to the list of meshes
+                    meshes.append(cylinder)
+    
+        # Combine all the meshes into a single mesh object
+        combined_mesh = trimesh.util.concatenate(meshes)
+    
+        return combined_mesh
+    
+    def convert_swc_to_obj(self, swc_file, obj_file):
+        """
+        # # Example usage
+        swc_file = 'SWC_input/output9.swc'
+        obj_file = 'OBJ_output/output9.obj'
+        
+        convert_swc_to_obj(swc_file, obj_file)
+
+        Parameters
+        ----------
+        swc_file : TYPE
+            DESCRIPTION. Name and path of input SWC file
+        obj_file : TYPE
+            DESCRIPTION. Name and path of output OBJ file
+
+        Returns
+        -------
+        None.
+
+        """
+
+        swc_data = self.read_swc_file(swc_file)
+        mesh = self.create_mesh_from_swc(swc_data)
+        mesh.export(obj_file)
+    
