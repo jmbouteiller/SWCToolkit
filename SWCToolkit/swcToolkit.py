@@ -10,7 +10,10 @@ from scipy.spatial.transform import Rotation
 
 class swcToolkit():
 	"""
-	
+	Originally cloned from: https://github.com/ClaytonBingham/SWCToolkit
+    
+        
+    
 	```
 	from roots.swcToolkit import swcToolkit
 	swctool = swcToolkit()
