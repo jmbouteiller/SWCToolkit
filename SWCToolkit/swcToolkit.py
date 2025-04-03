@@ -360,7 +360,7 @@ class swcToolkit():
                     for p,point in enumerate(arbor[key][1:]):
                         points.append(point)
                         n.append(nind)
-                        if p == 0 and key is not 0:
+                        if p == 0 and key != 0:  # JMB 2025.04.02: replaced 'is not' with '!='
                             P.append(points.index(arbor[key][0])+1)
                         else:
                             P.append(Pind)
@@ -384,7 +384,7 @@ class swcToolkit():
                     for p,point in enumerate(arbor[key][1:]):
                         points.append(point)
                         n.append(nind)
-                        if p == 0 and key is not 0:
+                        if p == 0 and key != 0:  # JMB 2025.04.02: replaced 'is not' with '!='
                             P.append(points.index(arbor[key][0])+1)
                         else:
                             P.append(Pind)
@@ -426,10 +426,13 @@ class swcToolkit():
     
     
     
-    def convert_to_obj(self,input_filename,output_filename):
+    def convert_to_obj_lines(self,input_filename,output_filename):
         """
         Added 2025.04.02: converts a given SWC file into OBJ lines
-        Usage: convert_to_obj(inputFile.SWC, outputFile.OBJ)
+        Usage: 
+            from swcToolkit import swcToolkit
+            swcTool = swcToolkit()
+            swcTool.convert_to_obj_lines("./test_retinal_cells.swc" , "./test_converted_output.obj")            
         Status: untested!
 
         Parameters
